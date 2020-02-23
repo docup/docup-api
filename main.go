@@ -40,12 +40,12 @@ func main() {
 	// sample for cloud tasks. create http task
 	if false {
 		_, err := createHTTPTaskWithToken(
-			"soilworks-expt-01-266813",
+			"docup-269111",
 			"asia-northeast1",
 			"default",
 			//"https://endpoints-runtime-serverless-g7vn673b6q-an.a.run.app/cloudtask",
 			"https://19c8d168.ngrok.io/cloudtasks",
-			"soilworks-expt-01-266813@appspot.gserviceaccount.com",
+			"docup-269111@appspot.gserviceaccount.com",
 			"hoge")
 		if err != nil {
 			panic(err)
@@ -55,7 +55,7 @@ func main() {
 	// sample for jwt generation from service account secret key
 	if false {
 		jwt, err := generateJWT("soilworks-expt-01-266813-3271e161bc6e.json",
-			"soilworks-expt-01-266813@appspot.gserviceaccount.com",
+			"docup-269111@appspot.gserviceaccount.com",
 			"https://endpoints-runtime-serverless-g7vn673b6q-an.a.run.app",
 			3600)
 		if err != nil {
