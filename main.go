@@ -76,6 +76,7 @@ func main() {
 	{
 		//
 		r.Get("/api", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
 			for key, vals := range r.Header {
 				for _, val := range vals {
 					w.Write([]byte(key + ":" + val + "<br />"))
