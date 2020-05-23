@@ -1,0 +1,9 @@
+# see:
+#   about cors on iap https://cloud.google.com/iap/docs/customizing#allowing_http_options_cors_preflight
+#   how to iap setting: https://cloud.google.com/iap/docs/customizing#managing_settings
+#   yaml example https://cloud.google.com/sdk/gcloud/reference/beta/iap/settings/set?hl=ja
+
+# 一応設定を残してはあるが、この設定を実行しても正しく適用されないみたいなので(iap.yamlの設定自体は問題なさそうである)、結局Cloud-IAPを通したCORSは実現できてない(2020/05/23)
+access_settings:
+  cors_settings:
+    allow_http_options: true

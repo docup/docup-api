@@ -7,7 +7,8 @@ import (
 )
 
 type Env struct {
-	HTTPServerPort string `envconfig:"ISSUEMAKER_HTTP_SERVER_PORT" default:""`
+	HTTPServerPort string `envconfig:"HTTP_SERVER_PORT" default:""`
+	AllowedOrigins string `envconfig:"ALLOWED_ORIGINS" default:""`
 }
 
 var (
