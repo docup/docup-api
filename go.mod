@@ -7,7 +7,6 @@ require (
 	cloud.google.com/go/firestore v1.2.0 // indirect
 	cloud.google.com/go/logging v1.0.0
 	firebase.google.com/go v3.13.0+incompatible
-	github.com/futurenda/google-auth-id-token-verifier v0.0.0-20170311140316-2a5b89f28b7e
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/go-chi/cors v1.1.1
 	github.com/kelseyhightower/envconfig v1.4.0

@@ -129,10 +129,10 @@ func main() {
 
 		// public routes
 		r.Group(func(r chi.Router) {
-			r.Get("/public", func(w http.ResponseWriter, r *http.Request) {
+			r.Get("/guest", func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				_, err := w.Write([]byte(`{"message": "now you see public"}`))
+				_, err := w.Write([]byte(`{"message": "now you see as guest"}`))
 				if err != nil {
 					http.Error(w, http.StatusText(500), 500)
 					return
@@ -140,73 +140,25 @@ func main() {
 			})
 		})
 
-		r.Get("/verifytoken", func(w http.ResponseWriter, r *http.Request) {
-			reqToken := r.Header.Get("Authorization")
-			splitToken := strings.Split(reqToken, "Bearer")
-			if len(splitToken) != 2 {
-				w.Write([]byte("header error"))
-				return
-			}
-			idToken := strings.TrimSpace(splitToken[1])
-
-			ctx := context.Background()
-			config := &firebase.Config{ProjectID: "docup-269111"}
-			app, err := firebase.NewApp(context.Background(), config)
-			if err != nil {
-				panic(err)
-			}
-
-			client, err := app.Auth(ctx)
-			if err != nil {
-				panic(err)
-			}
-
-			token, err := client.VerifyIDToken(ctx, idToken)
-			if err != nil {
-				panic(err)
-			}
-			w.Write([]byte(fmt.Sprintf("Verified ID token: %v\n", token)))
-
-			//
-			//
-			//v := googleAuthIDTokenVerifier.Verifier{}
-			//aud := "965242496332-f1epc5enp7ji73e6hrq0dphc5sshlmqj.apps.googleusercontent.com"
-			////aud := "xxxxxx-yyyyyyy.apps.googleusercontent.com"
-			//err := v.VerifyIDToken(token, []string{
-			//	aud,
-			//})
-			//if err != nil {
-			//	w.Write([]byte(err.Error()))
-			//	return;
-			//}
-			//claimSet, err := googleAuthIDTokenVerifier.Decode(token)
-			//if err != nil {
-			//	w.Write([]byte(err.Error()))
-			//	return;
-			//}
-
-			//w.Write([]byte(fmt.Sprintf("%+v",claimSet)))
-		})
-
-		//
-		r.Get("/api", func(w http.ResponseWriter, r *http.Request) {
-			//w.Header().Set("Access-Control-Allow-Origin", "*")
-			for key, vals := range r.Header {
-				for _, val := range vals {
-					w.Write([]byte(key + ":" + val + "<br />"))
-				}
-			}
-			w.Write([]byte("hello api"))
-		})
-		//
-		r.Get("/guest", func(w http.ResponseWriter, r *http.Request) {
-			for key, vals := range r.Header {
-				for _, val := range vals {
-					w.Write([]byte(key + ":" + val + "<br />"))
-				}
-			}
-			w.Write([]byte("hello root"))
-		})
+		////
+		//r.Get("/api", func(w http.ResponseWriter, r *http.Request) {
+		//	//w.Header().Set("Access-Control-Allow-Origin", "*")
+		//	for key, vals := range r.Header {
+		//		for _, val := range vals {
+		//			w.Write([]byte(key + ":" + val + "<br />"))
+		//		}
+		//	}
+		//	w.Write([]byte("hello api"))
+		//})
+		////
+		//r.Get("/guest", func(w http.ResponseWriter, r *http.Request) {
+		//	for key, vals := range r.Header {
+		//		for _, val := range vals {
+		//			w.Write([]byte(key + ":" + val + "<br />"))
+		//		}
+		//	}
+		//	w.Write([]byte("hello root"))
+		//})
 		//
 		r.Post("/cloudtasks", func(w http.ResponseWriter, r *http.Request) {
 			stdlog.Println("start cloudtasks")
@@ -353,17 +305,6 @@ func createHTTPTaskWithToken(projectID, locationID, queueID, url, email, message
 	}
 
 	return createdTask, nil
-}
-
-func verifyFirebaseToken(ctx context.Context, next http.Handler, verifier *FirebaseAuthTokenVerifier) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := verifier.Verify(ctx, r)
-		if err != nil {
-			http.Error(w, http.StatusText(401), 401)
-		}
-		context.WithValue(ctx, "GoogleIDToken", token)
-		next.ServeHTTP(w, r)
-	})
 }
 
 type FirebaseAuthTokenVerifier struct {
