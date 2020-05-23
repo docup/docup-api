@@ -15,6 +15,8 @@ import (
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2beta3"
+	firebase "firebase.google.com/go"
+	"firebase.google.com/go/auth"
 	"github.com/docup/docup-api/env"
 	"github.com/docup/docup-api/log"
 	"github.com/go-chi/chi"
@@ -27,6 +29,8 @@ import (
 func main() {
 	//ctx, cancel := context.WithCancel(context.Background())
 	//defer cancel()
+
+	ctx := context.Background()
 
 	// Env
 	env, err := env.Process()
@@ -73,6 +77,11 @@ func main() {
 		return
 	}
 
+	tokenVerifier, err := NewFirebaseAuthTokenVerifier(ctx, "docup-269111")
+	if err != nil {
+		stdlog.Fatalf(err.Error())
+	}
+
 	r := chi.NewRouter()
 
 	// Basic CORS
@@ -91,6 +100,94 @@ func main() {
 
 	// routing
 	{
+		// protected routes
+		r.Group(func(r chi.Router) {
+			r.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					token, err := tokenVerifier.Verify(ctx, r)
+					if err != nil {
+						http.Error(w, http.StatusText(401), 401)
+						w.Write([]byte(err.Error()))
+						return
+					}
+					newContext := context.WithValue(r.Context(), "GoogleIDToken", token)
+					next.ServeHTTP(w, r.WithContext(newContext))
+				})
+			})
+
+			r.Get("/private", func(w http.ResponseWriter, r *http.Request) {
+				idToken := r.Context().Value("GoogleIDToken")
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"message": "now you see private. token:` + fmt.Sprintf("%+v", idToken) + `"}`))
+				if err != nil {
+					http.Error(w, http.StatusText(500), 500)
+					return
+				}
+			})
+		})
+
+		// public routes
+		r.Group(func(r chi.Router) {
+			r.Get("/public", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"message": "now you see public"}`))
+				if err != nil {
+					http.Error(w, http.StatusText(500), 500)
+					return
+				}
+			})
+		})
+
+		r.Get("/verifytoken", func(w http.ResponseWriter, r *http.Request) {
+			reqToken := r.Header.Get("Authorization")
+			splitToken := strings.Split(reqToken, "Bearer")
+			if len(splitToken) != 2 {
+				w.Write([]byte("header error"))
+				return
+			}
+			idToken := strings.TrimSpace(splitToken[1])
+
+			ctx := context.Background()
+			config := &firebase.Config{ProjectID: "docup-269111"}
+			app, err := firebase.NewApp(context.Background(), config)
+			if err != nil {
+				panic(err)
+			}
+
+			client, err := app.Auth(ctx)
+			if err != nil {
+				panic(err)
+			}
+
+			token, err := client.VerifyIDToken(ctx, idToken)
+			if err != nil {
+				panic(err)
+			}
+			w.Write([]byte(fmt.Sprintf("Verified ID token: %v\n", token)))
+
+			//
+			//
+			//v := googleAuthIDTokenVerifier.Verifier{}
+			//aud := "965242496332-f1epc5enp7ji73e6hrq0dphc5sshlmqj.apps.googleusercontent.com"
+			////aud := "xxxxxx-yyyyyyy.apps.googleusercontent.com"
+			//err := v.VerifyIDToken(token, []string{
+			//	aud,
+			//})
+			//if err != nil {
+			//	w.Write([]byte(err.Error()))
+			//	return;
+			//}
+			//claimSet, err := googleAuthIDTokenVerifier.Decode(token)
+			//if err != nil {
+			//	w.Write([]byte(err.Error()))
+			//	return;
+			//}
+
+			//w.Write([]byte(fmt.Sprintf("%+v",claimSet)))
+		})
+
 		//
 		r.Get("/api", func(w http.ResponseWriter, r *http.Request) {
 			//w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -256,4 +353,49 @@ func createHTTPTaskWithToken(projectID, locationID, queueID, url, email, message
 	}
 
 	return createdTask, nil
+}
+
+func verifyFirebaseToken(ctx context.Context, next http.Handler, verifier *FirebaseAuthTokenVerifier) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token, err := verifier.Verify(ctx, r)
+		if err != nil {
+			http.Error(w, http.StatusText(401), 401)
+		}
+		context.WithValue(ctx, "GoogleIDToken", token)
+		next.ServeHTTP(w, r)
+	})
+}
+
+type FirebaseAuthTokenVerifier struct {
+	client *auth.Client
+}
+
+func NewFirebaseAuthTokenVerifier(ctx context.Context, projectID string) (*FirebaseAuthTokenVerifier, error) {
+	config := &firebase.Config{ProjectID: projectID}
+	app, err := firebase.NewApp(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+	client, err := app.Auth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FirebaseAuthTokenVerifier{
+		client: client,
+	}, nil
+}
+
+func (it *FirebaseAuthTokenVerifier) Verify(ctx context.Context, r *http.Request) (*auth.Token, error) {
+	reqToken := r.Header.Get("Authorization")
+	splitToken := strings.Split(reqToken, "Bearer")
+	if len(splitToken) != 2 {
+		return nil, fmt.Errorf("Authorization bearer required")
+	}
+	idToken := strings.TrimSpace(splitToken[1])
+	return it.VerifyToken(ctx, idToken)
+}
+
+func (it *FirebaseAuthTokenVerifier) VerifyToken(ctx context.Context, jwtToken string) (*auth.Token, error) {
+	return it.client.VerifyIDToken(ctx, jwtToken)
 }
