@@ -7,6 +7,7 @@ import (
 )
 
 type Env struct {
+	HTTPServerHost string `envconfig:"HTTP_SERVER_HOST" default:""`
 	HTTPServerPort string `envconfig:"HTTP_SERVER_PORT" default:""`
 	AllowedOrigins string `envconfig:"ALLOWED_ORIGINS" default:""`
 }

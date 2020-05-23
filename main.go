@@ -74,13 +74,12 @@ func main() {
 	}
 
 	r := chi.NewRouter()
-	
+
 	// Basic CORS
 	// for more ideas, see: https://developer.github.com/v3/#cross-origin-resource-sharing
 	if env.AllowedOrigins != "" {
 		r.Use(cors.Handler(cors.Options{
-			// AllowedOrigins: []string{"https://foo.com"}, // Use this to allow specific origin hosts
-			AllowedOrigins:   strings.Split(env.AllowedOrigins, ","),
+			AllowedOrigins: strings.Split(env.AllowedOrigins, ","),
 			// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
@@ -89,7 +88,7 @@ func main() {
 			MaxAge:           300, // Maximum value not ignored by any of major browsers
 		}))
 	}
-	
+
 	// routing
 	{
 		//
@@ -135,7 +134,8 @@ func main() {
 		}
 	}
 
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	host := env.HTTPServerHost
+	if err := http.ListenAndServe(host+":"+port, r); err != nil {
 		stdlog.Fatal(err)
 	}
 }
