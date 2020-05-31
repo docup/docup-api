@@ -16,3 +16,6 @@
 
 # direnv
 .envrc
+
+# frontend assets
+build/

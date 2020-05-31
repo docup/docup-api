@@ -115,7 +115,7 @@ func main() {
 				})
 			})
 
-			r.Get("/private", func(w http.ResponseWriter, r *http.Request) {
+			r.Get("/api/private", func(w http.ResponseWriter, r *http.Request) {
 				idToken := r.Context().Value("GoogleIDToken")
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -129,7 +129,7 @@ func main() {
 
 		// public routes
 		r.Group(func(r chi.Router) {
-			r.Get("/guest", func(w http.ResponseWriter, r *http.Request) {
+			r.Get("/api/guest", func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`{"message": "now you see as guest"}`))
@@ -160,7 +160,7 @@ func main() {
 		//	w.Write([]byte("hello root"))
 		//})
 		//
-		r.Post("/cloudtasks", func(w http.ResponseWriter, r *http.Request) {
+		r.Post("/api/cloudtasks", func(w http.ResponseWriter, r *http.Request) {
 			stdlog.Println("start cloudtasks")
 			for key, vals := range r.Header {
 				for _, val := range vals {

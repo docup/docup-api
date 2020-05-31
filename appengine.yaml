@@ -1,5 +1,16 @@
 runtime: go112
-service: api
+service: default
 
-env_variables:
-  ALLOWED_ORIGINS: "https://app-dot-docup-269111.appspot.com"
+#env_variables:
+#  ALLOWED_ORIGINS: "https://app-dot-docup-269111.appspot.com"
+
+handlers:
+  - url: /api/.*
+    script: auto
+  - url: /(.*\.(json|ico|js))$
+    static_files: build/\1
+    upload: build/.*\.(json|ico|js)$
+  - url: /.*
+    static_files: build/index.html
+    upload: build/index.html
+    expiration: "0s"
