@@ -1,6 +1,6 @@
 .PHONY: appengine/dev/deploy
 appengine/dev/deploy:
-	cd ../docup-frontend && yarn build
+	cd ../docup-frontend && rm -rf build && yarn build
 	rm -rf build && cp -r ../docup-frontend/build ./
 	gcloud app deploy --project=docup-269111 appengine.yaml --quiet
 

@@ -1,5 +1,5 @@
 runtime: go112
-service: default
+service: app01
 
 #env_variables:
 #  ALLOWED_ORIGINS: "https://app-dot-docup-269111.appspot.com"
