@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wss
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      run: wss
+  template:
+    metadata:
+      labels:
+        run: wss
+    spec:
+      containers:
+      - image: gcr.io/docup-269111/go-websocket-sample:latest
+        imagePullPolicy: IfNotPresent
+        name: wss
+        ports:
+        - containerPort: 8080
+          protocol: TCP
