@@ -43,6 +43,7 @@ func NewListener(port int) Listener {
 }
 
 func (lis *listener) Run() {
+	// Ingressは'Get /'でHealthCheckをするので重要
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	})
