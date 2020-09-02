@@ -1,3 +1,7 @@
+# ここのチュートリアルを参考にしたコマンドの履歴
+# https://cloud.google.com/kubernetes-engine/docs/tutorials/hello-app?hl=ja
+# https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs?hl=ja
+#
 kubectl describe managedcertificate certificate-docup
 kubectl get ingress
 kubectl apply -f manifests/basic-ingress.yaml
