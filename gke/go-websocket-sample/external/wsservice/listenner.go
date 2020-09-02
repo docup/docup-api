@@ -43,17 +43,15 @@ func NewListener(port int) Listener {
 }
 
 func (lis *listener) Run() {
-	http.HandleFunc("/", func (w http.ResponseWriter, r *http.Request){
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	})
-	
-	
-	
-	http.HandleFunc("/ping", func (w http.ResponseWriter, r *http.Request){
+
+	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	})
-	
+
 	http.HandleFunc("/ws", lis.handleConnection)
 
 	servAddr := fmt.Sprintf(":%d", lis.port)
