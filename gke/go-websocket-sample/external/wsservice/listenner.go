@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -79,7 +80,7 @@ func (lis *listener) handleConnection(w http.ResponseWriter, r *http.Request) {
 	defer lis.closeConnection(ws)
 
 	addr := ws.RemoteAddr().String()
-	fmt.Println("NewConnection", addr)
+	fmt.Printf("[%+v] NewConnection %+v\n", time.Now(), addr)
 
 	c := NewConn(ws)
 	lis.m.Lock()
@@ -93,7 +94,7 @@ func (lis *listener) handleConnection(w http.ResponseWriter, r *http.Request) {
 
 func (lis *listener) closeConnection(ws *websocket.Conn) {
 	addr := ws.RemoteAddr().String()
-	fmt.Println("CloseConnection", addr)
+	fmt.Printf("[%+v] CloseConnection %+v\n", time.Now(), addr)
 
 	lis.m.Lock()
 	c := lis.conns[ws]
