@@ -1,0 +1,39 @@
+kubectl describe managedcertificate certificate-docup
+kubectl get ingress
+kubectl apply -f manifests/basic-ingress.yaml
+kubectl apply -f manifests/certificate-docup.yaml
+kubectl get ingress basic-ingress
+gcloud compute addresses list
+gcloud compute addresses -h
+kubectl get addresses
+gcloud compute addresses create web-static-ip --global
+kubectl get all
+kubectl apply -f manifests/web-service.yaml
+kubectl get service web
+kubectl apply -f manifests/web-deployment.yaml
+kubectl get pods
+watch kubectl get pods
+kubectl set image deployment/hello-app hello-app=gcr.io/docup-269111/hello-app:v2
+docker push gcr.io/docup-269111/hello-app:v2
+docker build -t gcr.io/docup-269111/hello-app:v2 .
+kubectl get service
+kubectl expose deployment hello-app --name=hello-app-service --type=LoadBalancer --port 80 --target-port 8080
+kubectl autoscale deployment hello-app --cpu-percent=80 --min=1 --max=5
+kubectl scale deployment hello-app --replicas=3
+kubectl create deployment hello-app --image=gcr.io/docup-269111/hello-app:v1
+gcloud compute instances list
+gcloud container clusters create default-cluster
+gcloud config list
+gcloud projects describe
+gcloud config configurations describe
+gcloud config get project
+gcloud config set compute/zone asia-northeast1-a
+docker push gcr.io/docup-269111/hello-app:v1
+gcloud auth --project=docup-269111 configure-docker
+gcloud config configurations activate docup
+docker run --rm -p 8080:8080 gcr.io/docup-269111/hello-app:v1
+docker images
+docker build -t gcr.io/docup-269111/hello-app:v1 .
+pwd
+git clone https://github.com/GoogleCloudPlatform/kubernetes-engine-samples
+cd gke/
