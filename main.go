@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
@@ -18,6 +19,7 @@ import (
 	"github.com/docup/docup-api/log2"
 	"github.com/go-chi/chi"
 	"github.com/gorilla/websocket"
+	"github.com/openshift/osin"
 	"github.com/rs/cors"
 )
 
@@ -64,6 +66,12 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer firestoreClient.Close()
+
+	// OAuth server
+	storage := &OsinStorage{
+		Firestore: firestoreClient,
+	}
+	OAuthServer := osin.NewServer(osin.NewServerConfig(), storage)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -119,10 +127,116 @@ func main() {
 
 	// public routes
 	r.Group(func(r chi.Router) {
+		// sample request
+		// http://localhost:8080/authorize?redirect_urihttp%3A%2F%2Flocalhost%3A8080%2Fredirecturi&response_type=code&client_id=id&state=1
+		r.Get("/authorize", func(w http.ResponseWriter, r *http.Request) {
+			resp := OAuthServer.NewResponse()
+			defer resp.Close()
+			if ar := OAuthServer.HandleAuthorizeRequest(resp, r); ar != nil {
+				//id := r.FormValue("id")
+				//password := r.FormValue("password")
+
+				//csrftoken checkなど
+				//...
+
+				//DBにUserとPassword確認
+				//err := a.DBClient.CheckIDPassword(id, password)
+				//if err == sql.ErrNoRows {
+				//
+				//	// NoRows場合の処理
+				//
+				//} else if err != nil {
+				//
+				//	// error処理
+				//
+				//}
+				ar.Authorized = true
+				OAuthServer.FinishAuthorizeRequest(resp, r, ar)
+				osin.OutputJSON(resp, w, r)
+			} else {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte("bad request"))
+			}
+		})
+
 		r.Handle("/", playground.Handler("GraphQL playground", "/query"))
 		r.Handle("/query", c.Handler(srv))
 	})
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
 	log.Fatal(http.ListenAndServe("localhost:"+port, r))
+}
+
+type App struct {
+	OAuthServer *osin.Server
+}
+
+type OsinStorage struct {
+	Firestore *firestore.Client
+}
+
+func (it *OsinStorage) Clone() osin.Storage {
+	return it
+}
+
+func (OsinStorage) Close() {
+	// do nothing
+}
+
+func (OsinStorage) GetClient(id string) (osin.Client, error) {
+	return OsinClient{}, nil
+}
+
+func (OsinStorage) SaveAuthorize(d *osin.AuthorizeData) error {
+	return nil
+}
+
+func (OsinStorage) LoadAuthorize(code string) (*osin.AuthorizeData, error) {
+	panic("5 implement me")
+}
+
+func (OsinStorage) RemoveAuthorize(code string) error {
+	panic("6 implement me")
+}
+
+func (OsinStorage) SaveAccess(*osin.AccessData) error {
+	panic("7 implement me")
+}
+
+func (OsinStorage) LoadAccess(token string) (*osin.AccessData, error) {
+	panic("8 implement me")
+}
+
+func (OsinStorage) RemoveAccess(token string) error {
+	panic("9 implement me")
+}
+
+func (OsinStorage) LoadRefresh(token string) (*osin.AccessData, error) {
+	panic("10 implement me")
+}
+
+func (OsinStorage) RemoveRefresh(token string) error {
+	panic("11 implement me")
+}
+
+type OsinClient struct{}
+
+func (OsinClient) GetId() string {
+	return "id"
+}
+
+func (OsinClient) GetSecret() string {
+	return "secret"
+}
+
+func (OsinClient) GetRedirectUri() string {
+	return "http://localhost:8080/redirecturi"
+}
+
+func (OsinClient) GetUserData() interface{} {
+	return struct {
+		Name string
+	}{
+		Name: "hoge",
+	}
 }

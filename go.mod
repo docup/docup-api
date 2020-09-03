@@ -12,7 +12,9 @@ require (
 	github.com/go-chi/cors v1.1.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/openshift/osin v1.0.1
 	github.com/opentracing/opentracing-go v1.2.0
+	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/rs/cors v1.7.0
