@@ -5,7 +5,6 @@ package graph
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -39,35 +38,18 @@ func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
 			return nil, err
 		}
 		a := struct {
-			First string `json:"first"`
+			First string `firestore:"first"`
 		}{}
 
-		dd := doc.Data()
-		MapToStruct(dd, &a)
+		if err = doc.DataTo(&a); err != nil {
+			return nil, err
+		}
 
 		todos = append(todos, &model.Todo{
 			Text: fmt.Sprintf("%+v", a.First),
 		})
 	}
 	return todos, nil
-}
-
-func MapToStruct(mapVal map[string]interface{}, val interface{}) error {
-	//structVal := reflect.Indirect(reflect.ValueOf(val))
-	//for name, elem := range mapVal {
-	//	v := structVal.FieldByName(name)
-	//
-	//	if v.IsValid() {
-	//		v.Set(reflect.ValueOf(elem))
-	//	}
-	//}
-	//return
-
-	bin, err := json.Marshal(mapVal)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(bin, val)
 }
 
 // Mutation returns generated.MutationResolver implementation.
