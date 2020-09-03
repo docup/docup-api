@@ -84,6 +84,7 @@ func main() {
 
 	// OAuth server
 	storage := &OsinStorage{
+		Ctx:       ctx,
 		Firestore: firestoreClient,
 		Fsc:       fsc,
 	}
@@ -184,7 +185,9 @@ func main() {
 				//
 				//}
 				ar.Authorized = true
-				ar.UserData = token
+				ar.UserData = &AuthorizeDataUserData{
+					Token: token,
+				}
 				OAuthServer.FinishAuthorizeRequest(resp, r, ar)
 				osin.OutputJSON(resp, w, r)
 			} else {
@@ -214,6 +217,7 @@ type App struct {
 }
 
 type OsinStorage struct {
+	Ctx       context.Context
 	Firestore *firestore.Client
 	Fsc       *firestorm.FSClient
 }
@@ -227,7 +231,7 @@ func (OsinStorage) Close() {
 }
 
 func (it *OsinStorage) GetClient(id string) (osin.Client, error) {
-	o, err := FindClient(context.Background(), it.Firestore, id)
+	o, err := FindClient(it.Ctx, it.Firestore, id)
 	if err != nil {
 		if errutil.IsNotFound(err) {
 			return nil, osin.ErrNotFound
@@ -239,41 +243,43 @@ func (it *OsinStorage) GetClient(id string) (osin.Client, error) {
 }
 
 type Authorized struct {
-	ID               string
-	AuthorizePayload string
-	TokenPayload     string
+	ID                   string
+	AuthorizeDataPayload string
+}
+
+type AuthorizeDataUserData struct {
+	Token *auth.Token
 }
 
 func (it *OsinStorage) SaveAuthorize(d *osin.AuthorizeData) error {
-	token, ok := d.UserData.(*auth.Token)
-	if !ok {
-		return fmt.Errorf("invalid UserData")
-	}
-	fmt.Println(token)
-
 	abin, err := json.Marshal(d)
 	if err != nil {
 		return fmt.Errorf("failed Marshal")
 	}
-	tbin, err := json.Marshal(token)
-	if err != nil {
-		return fmt.Errorf("failed Marshal")
-	}
-
 	a := &Authorized{
-		ID:               d.Code,
-		AuthorizePayload: string(abin),
-		TokenPayload:     string(tbin),
+		ID:                   d.Code,
+		AuthorizeDataPayload: string(abin),
 	}
-	f := it.Fsc.NewRequest().CreateEntities(context.Background(), a)
+	f := it.Fsc.NewRequest().CreateEntities(it.Ctx, a)
 	if err := f(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (OsinStorage) LoadAuthorize(code string) (*osin.AuthorizeData, error) {
-	panic("5 implement me")
+func (it *OsinStorage) LoadAuthorize(code string) (*osin.AuthorizeData, error) {
+	a := &Authorized{
+		ID: code,
+	}
+	_, err := it.Fsc.NewRequest().GetEntities(it.Ctx, a)()
+	if err != nil {
+		return nil, fmt.Errorf("failed GetEntities")
+	}
+	ad := &osin.AuthorizeData{}
+	if err := json.Unmarshal([]byte(a.AuthorizeDataPayload), ad); err != nil {
+		return nil, fmt.Errorf("failed Unmarshal")
+	}
+	return ad, nil
 }
 
 func (OsinStorage) RemoveAuthorize(code string) error {
