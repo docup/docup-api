@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	cloud.google.com/go v0.55.0
-	cloud.google.com/go/firestore v1.2.0 // indirect
+	cloud.google.com/go/firestore v1.2.0
 	cloud.google.com/go/logging v1.0.0
 	firebase.google.com/go v3.13.0+incompatible
 	github.com/99designs/gqlgen v0.12.2

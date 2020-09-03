@@ -13,6 +13,7 @@ type Env struct {
 	AllowedOrigins string        `envconfig:"ALLOWED_ORIGINS" default:""`
 	LogLevel       zapcore.Level `envconfig:"LOG_LEVEL" default:"INFO"`
 	Env            string        `envconfig:"ENV" default:"production"`
+	ProjectID      string        `envconfig:"PROJECT_ID" required:"true"`
 }
 
 var (

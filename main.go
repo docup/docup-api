@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	stdlog "log"
 	"net/http"
 	"os"
 	"time"
 
+	firebase "firebase.google.com/go"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -29,7 +29,7 @@ func main() {
 	// Env
 	env, err := env.Process()
 	if err != nil {
-		stdlog.Fatalf(err.Error())
+		log.Fatalf(err.Error())
 	}
 
 	logger, err := log2.New(env.LogLevel, "docup-api", env.Env)
@@ -47,17 +47,32 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	tokenVerifier, err := NewFirebaseAuthTokenVerifier(ctx, "docup-269111")
+	tokenVerifier, err := NewFirebaseAuthTokenVerifier(ctx, env.ProjectID)
 	if err != nil {
-		stdlog.Fatalf(err.Error())
+		log.Fatalf(err.Error())
 	}
+
+	// Use the application default credentials
+	conf := &firebase.Config{ProjectID: env.ProjectID}
+	app, err := firebase.NewApp(ctx, conf)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	firestoreClient, err := app.Firestore(ctx)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer firestoreClient.Close()
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
 	}
 
-	resolver := &graph.Resolver{}
+	resolver := &graph.Resolver{
+		Firestore: firestoreClient,
+	}
 
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	srv.AddTransport(transport.POST{})
@@ -109,5 +124,5 @@ func main() {
 	})
 
 	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	log.Fatal(http.ListenAndServe(":"+port, r))
+	log.Fatal(http.ListenAndServe("localhost:"+port, r))
 }
