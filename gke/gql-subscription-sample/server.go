@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"os"
 	"time"
-	
+
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/docup/docup-api/gke/gql-subscription-sample/graph"
 	"github.com/docup/docup-api/gke/gql-subscription-sample/graph/generated"
+	"github.com/docup/docup-api/gke/gql-subscription-sample/graph/model"
 	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
 )
@@ -23,13 +24,18 @@ func main() {
 		AllowedOrigins:   []string{"http://localhost:3000"},
 		AllowCredentials: true,
 	})
-	
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
 	}
 
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}))
+	var u = make(chan *model.User)
+	resolver := &graph.Resolver{
+		SubscribeMessage: u,
+	}
+
+	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	srv.AddTransport(transport.POST{})
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
