@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	crand "crypto/rand"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -17,6 +18,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/docup/docup-api/env"
+	"github.com/docup/docup-api/errutil"
 	"github.com/docup/docup-api/graph"
 	"github.com/docup/docup-api/graph/generated"
 	"github.com/docup/docup-api/log2"
@@ -146,7 +148,7 @@ func main() {
 	// public routes
 	r.Group(func(r chi.Router) {
 		// sample request
-		// http://localhost:8080/authorize?redirect_urihttp%3A%2F%2Flocalhost%3A8080%2Fredirecturi&response_type=code&client_id=qknio6kHxTHOqQZuWwd5&state=1
+		// "http://localhost:8080/authorize?redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fredirecturi&response_type=code&client_id=qknio6kHxTHOqQZuWwd5&state=1"
 		r.Get("/authorize", func(w http.ResponseWriter, r *http.Request) {
 			resp := OAuthServer.NewResponse()
 			defer resp.Close()
@@ -172,8 +174,16 @@ func main() {
 				OAuthServer.FinishAuthorizeRequest(resp, r, ar)
 				osin.OutputJSON(resp, w, r)
 			} else {
-				w.WriteHeader(http.StatusBadRequest)
-				w.Write([]byte("bad request"))
+				bin, err := json.Marshal(resp.Output)
+				if err != nil {
+					logger.Error(err.Error())
+				}
+				if resp.IsError {
+					w.WriteHeader(http.StatusInternalServerError)
+				} else {
+					w.WriteHeader(http.StatusBadRequest)
+				}
+				w.Write(bin)
 			}
 		})
 
@@ -204,6 +214,9 @@ func (OsinStorage) Close() {
 func (it *OsinStorage) GetClient(id string) (osin.Client, error) {
 	o, err := FindClient(context.Background(), it.Firestore, id)
 	if err != nil {
+		if errutil.IsNotFound(err) {
+			return nil, osin.ErrNotFound
+		}
 		return nil, err
 	}
 	o.ID = id

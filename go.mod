@@ -25,5 +25,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	google.golang.org/api v0.20.0
 	google.golang.org/genproto v0.0.0-20200325114520-5b2d0af7952b
+	google.golang.org/grpc v1.28.0
 	sourcegraph.com/sourcegraph/appdash v0.0.0-20190731080439-ebfcffb1b5c0
 )
