@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	crand "crypto/rand"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -18,12 +21,17 @@ import (
 	"github.com/docup/docup-api/graph/generated"
 	"github.com/docup/docup-api/log2"
 	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	"github.com/gorilla/websocket"
 	"github.com/openshift/osin"
-	"github.com/rs/cors"
+	//"github.com/rs/cors"
 )
 
 const defaultPort = "8080"
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func main() {
 	ctx := context.Background()
@@ -45,7 +53,7 @@ func main() {
 	ctx = log2.WithContext(ctx, logger)
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedOrigins:   []string{"http://localhost:3000", "http://c02c6157md6t.local:3000"},
 		AllowCredentials: true,
 	})
 
@@ -107,6 +115,16 @@ func main() {
 
 	r := chi.NewRouter()
 
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins: strings.Split("http://c02c6157md6t.local:3000", ","),
+		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
+
 	// protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(func(next http.Handler) http.Handler {
@@ -128,7 +146,7 @@ func main() {
 	// public routes
 	r.Group(func(r chi.Router) {
 		// sample request
-		// http://localhost:8080/authorize?redirect_urihttp%3A%2F%2Flocalhost%3A8080%2Fredirecturi&response_type=code&client_id=id&state=1
+		// http://localhost:8080/authorize?redirect_urihttp%3A%2F%2Flocalhost%3A8080%2Fredirecturi&response_type=code&client_id=qknio6kHxTHOqQZuWwd5&state=1
 		r.Get("/authorize", func(w http.ResponseWriter, r *http.Request) {
 			resp := OAuthServer.NewResponse()
 			defer resp.Close()
@@ -183,8 +201,13 @@ func (OsinStorage) Close() {
 	// do nothing
 }
 
-func (OsinStorage) GetClient(id string) (osin.Client, error) {
-	return OsinClient{}, nil
+func (it *OsinStorage) GetClient(id string) (osin.Client, error) {
+	o, err := FindClient(context.Background(), it.Firestore, id)
+	if err != nil {
+		return nil, err
+	}
+	o.ID = id
+	return o, nil
 }
 
 func (OsinStorage) SaveAuthorize(d *osin.AuthorizeData) error {
@@ -219,24 +242,63 @@ func (OsinStorage) RemoveRefresh(token string) error {
 	panic("11 implement me")
 }
 
-type OsinClient struct{}
-
-func (OsinClient) GetId() string {
-	return "id"
-}
-
-func (OsinClient) GetSecret() string {
-	return "secret"
-}
-
-func (OsinClient) GetRedirectUri() string {
-	return "http://localhost:8080/redirecturi"
-}
-
-func (OsinClient) GetUserData() interface{} {
-	return struct {
-		Name string
-	}{
-		Name: "hoge",
+func FindClient(ctx context.Context, firestore *firestore.Client, id string) (*OsinClient, error) {
+	dsnap, err := firestore.Collection("clients").Doc(id).Get(ctx)
+	if err != nil {
+		return nil, err
 	}
+	o := &OsinClient{}
+	if err := dsnap.DataTo(o); err != nil {
+		return nil, err
+	}
+	return o, nil
+}
+
+type OsinClient struct {
+	ID          string      `firestore:"id"`
+	Secret      string      `firestore:"secret"`
+	RedirectURI string      `firestore:"redirectUri"`
+	UserData    interface{} `firestore:"userData"`
+}
+
+func (it *OsinClient) GetId() string {
+	return it.ID
+}
+
+func (it *OsinClient) GetSecret() string {
+	return it.Secret
+}
+
+func (it *OsinClient) GetRedirectUri() string {
+	return it.RedirectURI
+}
+
+func (it *OsinClient) GetUserData() interface{} {
+	return it.UserData
+}
+
+func createClientSecret() string {
+	return secureRandomStr(32)
+}
+
+func secureRandomStr(b int) string {
+	k := make([]byte, b)
+	if _, err := crand.Read(k); err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("%x", k)
+}
+
+func createClientID() string {
+	return RandString(20)
+}
+
+const rs2Letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandString(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = rs2Letters[rand.Intn(len(rs2Letters))]
+	}
+	return string(b)
 }
