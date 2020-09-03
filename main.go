@@ -88,7 +88,9 @@ func main() {
 		Firestore: firestoreClient,
 		Fsc:       fsc,
 	}
-	OAuthServer := osin.NewServer(osin.NewServerConfig(), storage)
+	cfg := osin.NewServerConfig()
+	cfg.AllowClientSecretInParams = true
+	OAuthServer := osin.NewServer(cfg, storage)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -204,6 +206,29 @@ func main() {
 			}
 		})
 
+		// Access token endpoint
+		r.Post("/token", func(w http.ResponseWriter, r *http.Request) {
+			resp := OAuthServer.NewResponse()
+			defer resp.Close()
+
+			if ar := OAuthServer.HandleAccessRequest(resp, r); ar != nil {
+				ar.Authorized = true
+				OAuthServer.FinishAccessRequest(resp, r, ar)
+			} else {
+				bin, err := json.Marshal(resp.Output)
+				if err != nil {
+					logger.Error(err.Error())
+				}
+				if resp.IsError {
+					w.WriteHeader(http.StatusInternalServerError)
+				} else {
+					w.WriteHeader(http.StatusBadRequest)
+				}
+				w.Write(bin)
+			}
+			osin.OutputJSON(resp, w, r)
+		})
+
 		r.Handle("/", playground.Handler("GraphQL playground", "/query"))
 		r.Handle("/query", c.Handler(srv))
 	})
@@ -275,9 +300,44 @@ func (it *OsinStorage) LoadAuthorize(code string) (*osin.AuthorizeData, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed GetEntities")
 	}
-	ad := &osin.AuthorizeData{}
-	if err := json.Unmarshal([]byte(a.AuthorizeDataPayload), ad); err != nil {
+
+	type Client struct {
+		ID string
+	}
+
+	type AuthorizeDataUnmarshal struct {
+		Client              Client
+		Code                string
+		ExpiresIn           int32
+		Scope               string
+		RedirectUri         string
+		State               string
+		CreatedAt           time.Time
+		UserData            interface{}
+		CodeChallenge       string
+		CodeChallengeMethod string
+	}
+
+	d := &AuthorizeDataUnmarshal{}
+	if err := json.Unmarshal([]byte(a.AuthorizeDataPayload), d); err != nil {
 		return nil, fmt.Errorf("failed Unmarshal")
+	}
+	c, err := it.GetClient(d.Client.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	ad := &osin.AuthorizeData{
+		Client:              c,
+		Code:                d.Code,
+		ExpiresIn:           d.ExpiresIn,
+		Scope:               d.Scope,
+		RedirectUri:         d.RedirectUri,
+		State:               d.State,
+		CreatedAt:           d.CreatedAt,
+		UserData:            d.UserData,
+		CodeChallenge:       d.CodeChallenge,
+		CodeChallengeMethod: d.CodeChallengeMethod,
 	}
 	return ad, nil
 }
