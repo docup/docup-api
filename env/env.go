@@ -4,12 +4,15 @@ import (
 	"sync"
 
 	"github.com/kelseyhightower/envconfig"
+	"go.uber.org/zap/zapcore"
 )
 
 type Env struct {
-	HTTPServerHost string `envconfig:"HTTP_SERVER_HOST" default:""`
-	HTTPServerPort string `envconfig:"HTTP_SERVER_PORT" default:""`
-	AllowedOrigins string `envconfig:"ALLOWED_ORIGINS" default:""`
+	HTTPServerHost string        `envconfig:"HTTP_SERVER_HOST" default:""`
+	HTTPServerPort string        `envconfig:"HTTP_SERVER_PORT" default:""`
+	AllowedOrigins string        `envconfig:"ALLOWED_ORIGINS" default:""`
+	LogLevel       zapcore.Level `envconfig:"LOG_LEVEL" default:"INFO"`
+	Env            string        `envconfig:"ENV" default:"production"`
 }
 
 var (
