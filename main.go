@@ -14,6 +14,7 @@ import (
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
+	"firebase.google.com/go/auth"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -25,6 +26,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/gorilla/websocket"
+	"github.com/jschoedt/go-firestorm"
 	"github.com/openshift/osin"
 	//"github.com/rs/cors"
 )
@@ -77,9 +79,13 @@ func main() {
 	}
 	defer firestoreClient.Close()
 
+	// firestoreClient client
+	fsc := firestorm.New(firestoreClient, "ID", "")
+
 	// OAuth server
 	storage := &OsinStorage{
 		Firestore: firestoreClient,
+		Fsc:       fsc,
 	}
 	OAuthServer := osin.NewServer(osin.NewServerConfig(), storage)
 
@@ -153,6 +159,13 @@ func main() {
 			resp := OAuthServer.NewResponse()
 			defer resp.Close()
 			if ar := OAuthServer.HandleAuthorizeRequest(resp, r); ar != nil {
+				token, err := tokenVerifier.Verify(ctx, r)
+				if err != nil {
+					http.Error(w, http.StatusText(401), 401)
+					w.Write([]byte(err.Error()))
+					return
+				}
+
 				//id := r.FormValue("id")
 				//password := r.FormValue("password")
 
@@ -171,6 +184,7 @@ func main() {
 				//
 				//}
 				ar.Authorized = true
+				ar.UserData = token
 				OAuthServer.FinishAuthorizeRequest(resp, r, ar)
 				osin.OutputJSON(resp, w, r)
 			} else {
@@ -201,6 +215,7 @@ type App struct {
 
 type OsinStorage struct {
 	Firestore *firestore.Client
+	Fsc       *firestorm.FSClient
 }
 
 func (it *OsinStorage) Clone() osin.Storage {
@@ -223,7 +238,37 @@ func (it *OsinStorage) GetClient(id string) (osin.Client, error) {
 	return o, nil
 }
 
-func (OsinStorage) SaveAuthorize(d *osin.AuthorizeData) error {
+type Authorized struct {
+	ID               string
+	AuthorizePayload string
+	TokenPayload     string
+}
+
+func (it *OsinStorage) SaveAuthorize(d *osin.AuthorizeData) error {
+	token, ok := d.UserData.(*auth.Token)
+	if !ok {
+		return fmt.Errorf("invalid UserData")
+	}
+	fmt.Println(token)
+
+	abin, err := json.Marshal(d)
+	if err != nil {
+		return fmt.Errorf("failed Marshal")
+	}
+	tbin, err := json.Marshal(token)
+	if err != nil {
+		return fmt.Errorf("failed Marshal")
+	}
+
+	a := &Authorized{
+		ID:               d.Code,
+		AuthorizePayload: string(abin),
+		TokenPayload:     string(tbin),
+	}
+	f := it.Fsc.NewRequest().CreateEntities(context.Background(), a)
+	if err := f(); err != nil {
+		return err
+	}
 	return nil
 }
 
