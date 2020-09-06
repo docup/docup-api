@@ -5,9 +5,11 @@ import (
 	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -31,7 +33,7 @@ import (
 	//"github.com/rs/cors"
 )
 
-const defaultPort = "8080"
+const defaultPort = "8081"
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
@@ -79,18 +81,18 @@ func main() {
 	}
 	defer firestoreClient.Close()
 
-	// firestoreClient client
-	fsc := firestorm.New(firestoreClient, "ID", "")
-
-	// OAuth server
-	storage := &OsinStorage{
-		Ctx:       ctx,
-		Firestore: firestoreClient,
-		Fsc:       fsc,
-	}
-	cfg := osin.NewServerConfig()
-	cfg.AllowClientSecretInParams = true
-	OAuthServer := osin.NewServer(cfg, storage)
+	//// firestoreClient client
+	//fsc := firestorm.New(firestoreClient, "ID", "")
+	//
+	//// OAuth server
+	//storage := &OsinStorage{
+	//	Ctx:       ctx,
+	//	Firestore: firestoreClient,
+	//	Fsc:       fsc,
+	//}
+	//cfg := osin.NewServerConfig()
+	//cfg.AllowClientSecretInParams = true
+	//OAuthServer := osin.NewServer(cfg, storage)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -156,77 +158,40 @@ func main() {
 
 	// public routes
 	r.Group(func(r chi.Router) {
-		// sample request
-		// "http://localhost:8080/authorize?redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fredirecturi&response_type=code&client_id=qknio6kHxTHOqQZuWwd5&state=1"
-		r.Get("/authorize", func(w http.ResponseWriter, r *http.Request) {
-			resp := OAuthServer.NewResponse()
-			defer resp.Close()
-			if ar := OAuthServer.HandleAuthorizeRequest(resp, r); ar != nil {
-				token, err := tokenVerifier.Verify(ctx, r)
-				if err != nil {
-					http.Error(w, http.StatusText(401), 401)
-					w.Write([]byte(err.Error()))
-					return
-				}
-
-				//id := r.FormValue("id")
-				//password := r.FormValue("password")
-
-				//csrftoken checkなど
-				//...
-
-				//DBにUserとPassword確認
-				//err := a.DBClient.CheckIDPassword(id, password)
-				//if err == sql.ErrNoRows {
-				//
-				//	// NoRows場合の処理
-				//
-				//} else if err != nil {
-				//
-				//	// error処理
-				//
-				//}
-				ar.Authorized = true
-				ar.UserData = &AuthorizeDataUserData{
-					Token: token,
-				}
-				OAuthServer.FinishAuthorizeRequest(resp, r, ar)
-				osin.OutputJSON(resp, w, r)
-			} else {
-				bin, err := json.Marshal(resp.Output)
-				if err != nil {
-					logger.Error(err.Error())
-				}
-				if resp.IsError {
-					w.WriteHeader(http.StatusInternalServerError)
-				} else {
-					w.WriteHeader(http.StatusBadRequest)
-				}
-				w.Write(bin)
+		r.Get("/redirecturi", func(w http.ResponseWriter, r *http.Request) {
+			r.ParseForm()
+			form := url.Values{}
+			form.Add("code", r.FormValue("code"))
+			form.Add("grant_type", "authorization_code")
+			form.Add("redirect_uri", "http://c02c6157md6t.local:8081/redirecturi")
+			form.Add("client_id", "qknio6kHxTHOqQZuWwd5")
+			form.Add("client_secret", "c4f546a0a5e2390a573462bb67d411f3c0ba45377524b497934c57b8944c637e")
+			request, error := http.NewRequest("POST", "http://localhost:8080/api/v1/token", strings.NewReader(form.Encode()))
+			if error != nil {
+				w.WriteHeader(500)
+				w.Write([]byte(err.Error()))
+				return
 			}
+			request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			response, err := http.DefaultClient.Do(request)
+			if err != nil {
+				w.WriteHeader(500)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			defer response.Body.Close()
+			bin, err := ioutil.ReadAll(response.Body)
+			if err != nil {
+				w.WriteHeader(500)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.WriteHeader(200)
+			w.Write(bin)
 		})
 
-		// Access token endpoint
-		r.Post("/token", func(w http.ResponseWriter, r *http.Request) {
-			resp := OAuthServer.NewResponse()
-			defer resp.Close()
-
-			if ar := OAuthServer.HandleAccessRequest(resp, r); ar != nil {
-				ar.Authorized = true
-				OAuthServer.FinishAccessRequest(resp, r, ar)
-			} else {
-				bin, err := json.Marshal(resp.Output)
-				if err != nil {
-					logger.Error(err.Error())
-				}
-				if resp.IsError {
-					w.WriteHeader(http.StatusInternalServerError)
-				} else {
-					w.WriteHeader(http.StatusBadRequest)
-				}
-				w.Write(bin)
-			}
-			osin.OutputJSON(resp, w, r)
+		r.Get("/integration", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "http://c02c6157md6t.local:3000/authorize?redirect_uri=http%3A%2F%2Fc02c6157md6t.local%3A8081%2Fredirecturi&response_type=code&client_id=qknio6kHxTHOqQZuWwd5&state=1&scope=email%2Cphone", 302)
 		})
 
 		r.Handle("/", playground.Handler("GraphQL playground", "/query"))
