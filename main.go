@@ -186,12 +186,11 @@ func main() {
 				w.Write([]byte(err.Error()))
 				return
 			}
+			res := string(bin)
+			fmt.Printf("%s", res)
 			w.WriteHeader(200)
-			w.Write(bin)
-		})
-
-		r.Get("/integration", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "http://c02c6157md6t.local:3000/authorize?redirect_uri=http%3A%2F%2Fc02c6157md6t.local%3A8081%2Fredirecturi&response_type=code&client_id=qknio6kHxTHOqQZuWwd5&state=1&scope=email%2Cphone", 302)
+			w.Header().Add("content-type", "text/html")
+			w.Write([]byte("<html>" + res + "<br /><a href='http://localhost:3001'>go back</a></html>"))
 		})
 
 		r.Handle("/", playground.Handler("GraphQL playground", "/query"))
