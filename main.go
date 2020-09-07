@@ -187,10 +187,69 @@ func main() {
 				return
 			}
 			res := string(bin)
+
+			var ret map[string]interface{}
+			if err := json.Unmarshal(bin, &ret); err != nil {
+				w.WriteHeader(500)
+				w.Write([]byte(err.Error()))
+				return
+			}
+
+			accessToken := fmt.Sprintf("%+v", ret["access_token"])
+			refreshToken := fmt.Sprintf("%+v", ret["refresh_token"])
+			idToken := fmt.Sprintf("%+v", ret["id_token"])
+			scope := fmt.Sprintf("%+v", ret["scope"])
+			fmt.Println(accessToken, refreshToken, idToken)
+
+			verifyOK := false
+			refreshedAccessToken := ""
+
+			// refresh token
+			{
+				form := url.Values{}
+				form.Add("client_id", "qknio6kHxTHOqQZuWwd5")
+				form.Add("client_secret", "c4f546a0a5e2390a573462bb67d411f3c0ba45377524b497934c57b8944c637e")
+				form.Add("refresh_token", refreshToken)
+				form.Add("grant_type", "refresh_token")
+				form.Add("scope", scope)
+				request, error := http.NewRequest("POST", "http://localhost:8080/api/v1/token", strings.NewReader(form.Encode()))
+				if error != nil {
+					w.WriteHeader(500)
+					w.Write([]byte(err.Error()))
+					return
+				}
+				request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+				response, err := http.DefaultClient.Do(request)
+				if err != nil {
+					w.WriteHeader(500)
+					w.Write([]byte(err.Error()))
+					return
+				}
+				defer response.Body.Close()
+				bin, err := ioutil.ReadAll(response.Body)
+				if err != nil {
+					w.WriteHeader(500)
+					w.Write([]byte(err.Error()))
+					return
+				}
+
+				var ret map[string]interface{}
+				if err := json.Unmarshal(bin, &ret); err != nil {
+					w.WriteHeader(500)
+					w.Write([]byte(err.Error()))
+					return
+				}
+
+				refreshedAccessToken = fmt.Sprintf("%+v", ret["access_token"])
+			}
+
 			fmt.Printf("%s", res)
 			w.WriteHeader(200)
 			w.Header().Add("content-type", "text/html")
-			w.Write([]byte("<html>" + res + "<br /><a href='http://localhost:3001'>go back</a></html>"))
+			w.Write([]byte("<html>" + res + "<div><a href='http://localhost:3001'>go back</a></div>" +
+				"<div>verify id_token:" + fmt.Sprintf("%t", verifyOK) + "</div>" +
+				"<div>refreshed access token: " + refreshedAccessToken + "</div>" +
+				"</html>"))
 		})
 
 		r.Handle("/", playground.Handler("GraphQL playground", "/query"))
